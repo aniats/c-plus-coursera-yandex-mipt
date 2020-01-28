@@ -1,5 +1,8 @@
 #include <iostream>
 #include <map>
+#include <algorithm>
+
+using namespace std;
 
 // Перечислимый тип для статуса задачи
 enum class TaskStatus {
@@ -13,6 +16,7 @@ enum class TaskStatus {
 // позволяющего хранить количество задач каждого статуса
 using TasksInfo = map<TaskStatus, int>;
 
+
 class TeamTasks {
 public:
     // Получить статистику по статусам задач конкретного разработчика
@@ -25,23 +29,48 @@ public:
         ++person_tasks[person][TaskStatus::NEW];
     }
 
+    int transfer(int tasks_left, TaskStatus first, TaskStatus second, TasksInfo& old_tasks, TasksInfo& updated_tasks)
+    {
+        int transferred_tasks = min(old_tasks[first], tasks_left);
+        //tasks_left -= transferred_tasks;
+        old_tasks[first] -= transferred_tasks;
+        updated_tasks[second] = transferred_tasks;
+
+        return tasks_left - transferred_tasks;
+    }
+
     // Обновить статусы по данному количеству задач конкретного разработчика,
     // подробности см. ниже
     tuple<TasksInfo, TasksInfo> PerformPersonTasks(const string& person, int task_count) {
         int tasks_left = task_count;
-        TasksInfo untouched_tasks = GetPersonTasksInfo(person);
-        TasksInfo changed_tasks = untouched_tasks;
 
-        if (changed_tasks::NEW - task_left > 0) {
-            changed_tasks::NEW -= tasks_left;
-            changed_tasks::IN += tasks_left;
-            tasks_left = 0;
+        TasksInfo old_tasks = person_tasks[person]  ; // GetPersonTasksInfo(person);
+        TasksInfo updated_tasks;
+
+        tasks_left = transfer(tasks_left, TaskStatus::NEW, TaskStatus::IN_PROGRESS, old_tasks, updated_tasks);
+        tasks_left = transfer(tasks_left, TaskStatus::IN_PROGRESS, TaskStatus::TESTING, old_tasks, updated_tasks);
+        tasks_left = transfer(tasks_left, TaskStatus::TESTING, TaskStatus::DONE, old_tasks, updated_tasks);
+
+        person_tasks[person][TaskStatus::NEW] = old_tasks[TaskStatus::NEW] + updated_tasks[TaskStatus::NEW];
+        person_tasks[person][TaskStatus::IN_PROGRESS] = old_tasks[TaskStatus::IN_PROGRESS] + updated_tasks[TaskStatus::IN_PROGRESS];
+        person_tasks[person][TaskStatus::TESTING] = old_tasks[TaskStatus::TESTING] + updated_tasks[TaskStatus::TESTING];
+        person_tasks[person][TaskStatus::DONE] = old_tasks[TaskStatus::DONE] + updated_tasks[TaskStatus::DONE];
+
+        TasksInfo new_upd;
+        for (auto it = updated_tasks.begin(); it != updated_tasks.end(); it++) {
+            if(it->second != 0) {
+                new_upd.insert(pair<TaskStatus, int>(it->first, it->second));
+            }
         }
-        else {
-            changed_tasks::IN += changed_tasks::NEW
+
+        TasksInfo new_old;
+        for (auto it = old_tasks.begin(); it != old_tasks.end(); it++) {
+            if(it->second != 0 && it->first != TaskStatus::DONE) {
+                new_old.insert(pair<TaskStatus, int>(it->first, it->second));
+            }
         }
 
-
+        return tie(new_upd, new_old);
     }
 
 private:
